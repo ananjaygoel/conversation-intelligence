@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Conversation Intelligence
 
-## Getting Started
+A focused V0 for turning customer call recordings into structured business data. Upload a recording and receive the transcript, a human-readable extraction, and downloadable JSON—without accounts, a database, or file storage.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20.9 or later
+- An OpenAI API key with access to transcription and text models
+
+## Installation
+
+```bash
+npm install
+cp .env.example .env.local
+```
+
+Set the value in `.env.local`:
+
+```text
+OPENAI_API_KEY=your_api_key_here
+```
+
+Never expose this key in a browser variable (for example, one prefixed with `NEXT_PUBLIC_`).
+
+## Run locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000), select an MP3, WAV, M4A, MP4, or WebM recording under 25 MB, then select **Process recording**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Processing pipeline
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. The browser sends the selected file as multipart form data to `/api/process`.
+2. The server validates the extension and file size.
+3. The server sends the in-memory file to OpenAI's `gpt-4o-mini-transcribe` model.
+4. The transcript is sent to `gpt-4.1-mini` through the Responses API with a strict JSON Schema response format.
+5. The client receives the transcript and validated structured result, then displays and makes the JSON available to copy or download.
 
-## Learn More
+Files are never written to persistent storage and the API key remains server-side.
 
-To learn more about Next.js, take a look at the following resources:
+## Checks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run lint
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Known limitations
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- V0 processes one recording at a time and waits for one synchronous response.
+- The 25 MB limit matches a simple demo-friendly path; long recordings should be split before upload.
+- Speaker labels and timestamps are not included in this first version.
+- Extraction quality depends on the clarity of the recording and transcription.
