@@ -1,0 +1,4 @@
+import { SourceManager } from "@/components/source-manager";
+import { requireUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+export default async function SourcesPage() { const user = await requireUser(); const sources = await db.ingestionSource.findMany({ where: { userId: user.id }, select: { id: true, name: true, description: true, keyPrefix: true, enabled: true, lastUsedAt: true }, orderBy: { createdAt: "desc" } }); return <main className="mx-auto max-w-5xl px-5 py-9 sm:px-8"><p className="text-xs font-semibold uppercase tracking-[.14em] text-blue-700">Automatic ingestion</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Sources</h1><p className="mt-2 text-sm text-slate-600">Manual uploads stay available. Sources let recording systems send files to your private ingestion API.</p><SourceManager sources={sources} /></main>; }

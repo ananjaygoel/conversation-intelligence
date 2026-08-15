@@ -1,0 +1,11 @@
+"use client";
+
+import { useState } from "react";
+
+type Delivery = { id: string; status: string; errorMessage: string | null; responseStatus: number | null; deliveredAt: Date | string | null; pipeline: { name: string; connectorType: string } };
+export function DeliveryList({ deliveries }: { deliveries: Delivery[] }) {
+  const [busy, setBusy] = useState<string | null>(null); const [messages, setMessages] = useState<Record<string, string>>({});
+  async function retry(id: string) { setBusy(id); const response = await fetch(`/api/deliveries/${id}/retry`, { method: "POST" }); const result = await response.json(); setMessages((current) => ({ ...current, [id]: result.error || (result.status === "SUCCESS" ? "Delivered successfully. Refresh to see the current status." : "Delivery still failed." ) })); setBusy(null); }
+  if (!deliveries.length) return null;
+  return <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="font-semibold">Pipeline deliveries</h2><p className="mt-1 text-sm text-slate-500">Delivery attempts run after the structured data is saved.</p><div className="mt-4 divide-y divide-slate-100">{deliveries.map((delivery) => <div key={delivery.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div><p className="font-medium text-slate-800">{delivery.pipeline.name}</p><p className="mt-1 text-sm text-slate-500">{delivery.pipeline.connectorType.replaceAll("_", " ")} · <span className={delivery.status === "SUCCESS" ? "text-emerald-700" : delivery.status === "FAILED" ? "text-rose-700" : "text-amber-700"}>{delivery.status === "SUCCESS" ? "✓ Delivered" : delivery.status === "FAILED" ? "✗ Failed" : delivery.status}</span>{delivery.responseStatus ? ` · HTTP ${delivery.responseStatus}` : ""}</p>{delivery.errorMessage && <p className="mt-1 text-sm text-rose-700">{delivery.errorMessage}</p>}{messages[delivery.id] && <p className="mt-1 text-sm text-slate-600">{messages[delivery.id]}</p>}</div>{delivery.status === "FAILED" && <button onClick={() => retry(delivery.id)} disabled={busy === delivery.id} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">{busy === delivery.id ? "Retrying…" : "Retry"}</button>}</div>)}</div></section>;
+}
