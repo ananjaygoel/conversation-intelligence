@@ -77,11 +77,19 @@ npx prisma generate
 npx prisma migrate dev --name init
 ```
 
-The database file is created at `prisma/dev.db` and is ignored by Git. Production environments should apply the checked-in migration with:
+The database file is created at `prisma/dev.db` and is ignored by Git.
+
+## Vercel production database
+
+Vercel production uses PostgreSQL, never the local SQLite file. The production Prisma schema and baseline migration live in `prisma/postgres/`; the original `prisma/schema.prisma` and `prisma/migrations/` remain the SQLite development chain. In production, `DATABASE_URL` is the Supabase transaction-pooler URL for serverless runtime traffic and `DIRECT_URL` is the separate session-pooler URL Prisma uses for migrations.
+
+After `DATABASE_URL` has been configured with the managed PostgreSQL connection string, deploy the checked-in production migration with:
 
 ```bash
-npx prisma migrate deploy
+npx prisma migrate deploy --schema prisma/postgres/schema.prisma
 ```
+
+Vercel runs the same command through `npm run vercel-build` before building Next.js. Do not use `prisma db push` in production and do not upload `prisma/dev.db`.
 
 ## Local development
 
@@ -181,6 +189,8 @@ https://trustmebro.one/api/connectors/salesforce/callback
 ```
 
 Do not hard-code this domain in application logic: all runtime URLs are derived from `APP_URL`. Keep `APP_URL=http://localhost:3000` for the default local setup, or use the actual port passed to `npm run dev -- --port <port>`.
+
+Vercel Functions accept multipart request bodies up to 4.5 MB. The deployed application enforces a 4 MB recording limit so manual uploads and ingestion requests receive a controlled `413` response; local development retains the 25 MB limit. Direct MP3, WAV, M4A, WebM, and MP4 processing works without FFmpeg. Formats that require normalization still need an FFmpeg-capable runtime.
 
 ## Authentication and data isolation
 

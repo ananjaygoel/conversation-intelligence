@@ -6,7 +6,11 @@ import { db } from "@/lib/db";
 import { triggerPipelinesForConversation } from "@/lib/pipeline-execution";
 import { ProcessingError, processRecording } from "@/lib/process-recording";
 
-export const MAX_RECORDING_SIZE = 25 * 1024 * 1024;
+// Vercel Functions reject request bodies above 4.5 MB before the route runs.
+// Leave a small margin so production receives a controlled application error,
+// while local development retains the original 25 MB limit.
+export const MAX_RECORDING_SIZE = process.env.VERCEL ? 4 * 1024 * 1024 : 25 * 1024 * 1024;
+export const MAX_RECORDING_SIZE_MB = MAX_RECORDING_SIZE / (1024 * 1024);
 const keyPrefixLength = 15;
 export function apiError(message: string, status: number) { return { message, status }; }
 export function generateSourceKey() { const key = `ci_src_${crypto.randomBytes(32).toString("base64url")}`; return { key, keyHash: crypto.createHash("sha256").update(key).digest("hex"), keyPrefix: key.slice(0, keyPrefixLength) }; }
@@ -29,7 +33,7 @@ export function validateIncomingFile(file: File) {
   const extension = file.name.split(".").pop()?.toLowerCase();
   if (!extension || !supportedExtensions.has(extension)) throw new ProcessingError("Unsupported file type. Choose MP3, WAV, M4A, AAC, OGG, FLAC, WebM, MP4, or MOV.", 415);
   if (!file.size) throw new ProcessingError("Choose a recording before processing.", 400);
-  if (file.size > MAX_RECORDING_SIZE) throw new ProcessingError("This recording is too large. Upload a file smaller than 25 MB.", 413);
+  if (file.size > MAX_RECORDING_SIZE) throw new ProcessingError(`This recording is too large. Upload a file smaller than ${MAX_RECORDING_SIZE_MB} MB.`, 413);
   return extension;
 }
 

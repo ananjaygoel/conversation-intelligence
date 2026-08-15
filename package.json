@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma migrate deploy --schema prisma/postgres/schema.prisma && prisma generate --schema prisma/postgres/schema.prisma && next build",
     "start": "next start",
     "lint": "eslint",
     "prisma:generate": "prisma generate",

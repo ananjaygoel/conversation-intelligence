@@ -1,0 +1,209 @@
+// Production Prisma schema. The application keeps prisma/schema.prisma and its
+// SQLite migration chain for local development; Vercel generates this client
+// and deploys the PostgreSQL migration chain during a production build.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String                @id @default(cuid())
+  email         String                @unique
+  passwordHash  String
+  role          String                @default("USER")
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  conversations Conversation[]
+  schemas       ExtractionSchema[]
+  sessions      Session[]
+  connections   ConnectorConnection[]
+  pipelines     Pipeline[]
+  oauthStates   OAuthState[]
+  sources       IngestionSource[]
+  ingestions    Ingestion[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model ExtractionSchema {
+  id               String         @id @default(cuid())
+  userId           String
+  name             String
+  description      String?
+  schemaDefinition String
+  isDefault        Boolean        @default(false)
+  systemKey        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations    Conversation[]
+  pipelines        Pipeline[]
+  ingestions       Ingestion[]
+
+  @@unique([userId, name])
+  @@unique([userId, systemKey])
+  @@index([userId, createdAt])
+}
+
+model Conversation {
+  id                String             @id @default(cuid())
+  userId            String
+  originalFilename  String
+  originalFileType  String
+  fileSize          Int
+  processingStatus  String             @default("COMPLETE")
+  transcript        String
+  structuredData    String
+  schemaId          String?
+  durationSeconds   Float?
+  transcriptionCost Float              @default(0)
+  extractionCost    Float              @default(0)
+  estimatedApiCost  Float              @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schema            ExtractionSchema?  @relation(fields: [schemaId], references: [id], onDelete: SetNull)
+  deliveries        PipelineDelivery[]
+  ingestions        Ingestion[]
+
+  @@index([userId, createdAt])
+  @@index([userId, schemaId])
+}
+
+model IngestionSource {
+  id          String      @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  keyHash     String      @unique
+  keyPrefix   String
+  enabled     Boolean     @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingestions  Ingestion[]
+
+  @@unique([userId, name])
+  @@index([userId, enabled])
+  @@index([keyPrefix])
+}
+
+model Ingestion {
+  id                    String            @id @default(cuid())
+  sourceId              String
+  userId                String
+  externalId            String?
+  sourceLabel           String?
+  originalFilename      String
+  originalFileType      String
+  fileSize              Int
+  schemaId              String?
+  pipelineId            String?
+  status                String            @default("RECEIVED")
+  errorMessage          String?
+  conversationId        String?           @unique
+  recordingData         Bytes?
+  receivedAt            DateTime          @default(now())
+  processingStartedAt   DateTime?
+  processingCompletedAt DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  source                IngestionSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schema                ExtractionSchema? @relation(fields: [schemaId], references: [id], onDelete: SetNull)
+  pipeline              Pipeline?         @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  conversation          Conversation?     @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceId, externalId])
+  @@index([userId, receivedAt])
+  @@index([sourceId, status, receivedAt])
+}
+
+model ConnectorConnection {
+  id          String     @id @default(cuid())
+  userId      String
+  type        String
+  displayName String
+  status      String     @default("CONNECTED")
+  credentials String?
+  metadata    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipelines   Pipeline[]
+
+  @@index([userId, type])
+  @@index([userId, status])
+}
+
+model Pipeline {
+  id              String               @id @default(cuid())
+  userId          String
+  name            String
+  schemaId        String?
+  connectorType   String
+  connectionId    String?
+  connectorConfig String
+  fieldMappings   String
+  enabled         Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schema          ExtractionSchema?    @relation(fields: [schemaId], references: [id], onDelete: SetNull)
+  connection      ConnectorConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  deliveries      PipelineDelivery[]
+  ingestions      Ingestion[]
+
+  @@unique([userId, name])
+  @@index([userId, schemaId, enabled])
+  @@index([connectionId])
+}
+
+model PipelineDelivery {
+  id                  String       @id @default(cuid())
+  pipelineId          String
+  conversationId      String
+  status              String       @default("PENDING")
+  responseStatus      Int?
+  responseBodySummary String?
+  attemptCount        Int          @default(0)
+  errorMessage        String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  deliveredAt         DateTime?
+  pipeline            Pipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([pipelineId, conversationId])
+  @@index([conversationId, createdAt])
+  @@index([pipelineId, status, createdAt])
+}
+
+model OAuthState {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  stateHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, expiresAt])
+}

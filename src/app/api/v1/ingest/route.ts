@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { ProcessingError } from "@/lib/process-recording";
 
 export const runtime = "nodejs";
+// `after()` work shares this route's Vercel Function lifetime.
+export const maxDuration = 300;
 const response = (body: object, status: number) => NextResponse.json(body, { status });
 export async function POST(request: Request) {
   const source = await authenticateSource(request.headers.get("authorization"));
