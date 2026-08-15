@@ -89,8 +89,8 @@ print(response.json())`;
           <li><strong>404</strong> — unknown/unauthorized schema, pipeline, or ingestion ID; verify ownership and IDs.</li>
           <li><strong>413</strong> — file exceeds the {MAX_RECORDING_SIZE_MB} MB limit; reduce or split it.</li>
           <li><strong>415</strong> — unsupported extension; use a documented type.</li>
-          <li><strong>422</strong> — incompatible schema/pipeline or safe media-normalization error; correct the request.</li>
-          <li><strong>503</strong> — surfaced in status if the server-side AI service is not configured; configure it and submit a new external ID.</li>
+          <li><strong>422</strong> — the supplied schema and pipeline are incompatible; choose a matching pair.</li>
+          <li>After a <strong>202</strong>, a transcription, normalization, or AI configuration failure is reported as a safe <Inline>failed</Inline> ingestion status from the status endpoint rather than exposing internal details.</li>
         </ul>
       </section>
 
